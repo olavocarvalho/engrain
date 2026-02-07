@@ -2,6 +2,7 @@
  * Tests for engrain remove command
  */
 
+import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

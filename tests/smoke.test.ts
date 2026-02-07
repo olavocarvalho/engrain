@@ -3,7 +3,7 @@
  * Basic sanity checks to ensure core functionality works
  */
 
-import { describe } from "bun:test";
+import { describe, test, expect } from "bun:test";
 import { spawn } from "node:child_process";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

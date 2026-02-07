@@ -1,6 +1,6 @@
 {
   "name": "engrain",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Embed documentation indexes into agent context. Clone docs, generate compact indexes, inject into AGENTS.md as always-on passive context.",
   "type": "module",
   "bin": "./bin/engrain.mjs",
