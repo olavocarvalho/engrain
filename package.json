@@ -1,15 +1,14 @@
 {
   "name": "engrain",
   "version": "0.0.1",
-  "description": "Engrain agent skills into always-on context. Transforms skills into embedded knowledge for LLM agents.",
+  "description": "Embed documentation indexes into agent context. Clone docs, generate compact indexes, inject into AGENTS.md as always-on passive context.",
   "type": "module",
-  "bin": {
-    "engrain": "./bin/engrain.mjs"
-  },
+  "bin": "./bin/engrain.mjs",
   "files": [
     "dist",
     "bin",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "dev": "bun src/engrain.ts",

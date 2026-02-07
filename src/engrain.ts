@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import pc from "picocolors";
 import { runCheckCommand } from "./commands/check";
 import { runDocsCommand } from "./commands/docs";
+import { CommandError } from "./types";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -76,7 +77,7 @@ async function main() {
 
       await runDocsCommand(repoUrl, {
         output: typeof values.output === "string" ? values.output : "AGENTS.md",
-        engrainDir: typeof values["engrain-dir"] === "string" ? values["engrain-dir"] : "engrain",
+        engrainDir: typeof values["engrain-dir"] === "string" ? values["engrain-dir"] : ".engrain",
         name: typeof values.name === "string" ? values.name : undefined,
         ref: typeof values.ref === "string" ? values.ref : "main",
         dryRun: values["dry-run"] === true,
@@ -145,7 +146,7 @@ function showDocsHelp() {
   console.log("");
   console.log(pc.bold("Options"));
   console.log("  -o, --output <file>      Output file (default: AGENTS.md)");
-  console.log("      --engrain-dir <dir>  Local docs directory (default: ./engrain)");
+  console.log("      --engrain-dir <dir>  Local docs directory (default: ./.engrain)");
   console.log("      --name <name>        Override repository name (default: derived from URL)");
   console.log("      --ref <ref>          Git branch/tag (default: main)");
   console.log("      --dry-run            Preview without writing");
@@ -169,6 +170,13 @@ function showCheckHelp() {
 }
 
 main().catch((err) => {
+  // Handle CommandError with custom exit code
+  if (err instanceof CommandError) {
+    // Error message already printed by command
+    process.exit(err.exitCode);
+  }
+
+  // Handle other errors
   const message = err instanceof Error ? err.message : String(err);
   console.error(`${pc.red("error")} ${message}`);
   process.exit(1);

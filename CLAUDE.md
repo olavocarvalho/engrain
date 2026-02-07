@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **engrain** is a CLI tool that embeds documentation indexes into `AGENTS.md` as passive context for AI coding agents. Based on Vercel's research showing that an 8KB docs index in AGENTS.md achieved 100% pass rate (vs 79% for skills), engrain clones docs repositories, generates deterministic pipe-delimited indexes, and injects them with idempotent markers.
 
-**Current Status:** V1 in development - CLI scaffold complete, core features in progress.
+**Current Status:** ✅ V1 complete - All core features implemented and tested.
 
 **Key Principle:** Passive context (always available) beats active retrieval (on-demand invocation).
 
@@ -53,7 +53,7 @@ src/
 │   ├── docs.ts             # 'docs' command (clone, index, inject)
 │   └── check.ts            # 'check' command (staleness detection)
 ├── utils/
-│   ├── source-parser.ts    # Parse GitHub/GitLab URLs
+│   ├── source-parser.ts    # Parse GitHub URLs
 │   ├── git.ts              # Git operations (depth=1, cleanup)
 │   ├── auth.ts             # Stateless auth (HTTPS→SSH fallback)
 │   └── sanitize.ts         # Path sanitization
@@ -65,18 +65,6 @@ src/
     ├── inject.ts           # AGENTS.md injection logic
     └── lock.ts             # Lock file management (~/.engrain/.engrain-lock.json)
 
-_workstream/
-├── planning/               # Implementation plans and reference patterns
-│   ├── PLAN.md            # Complete V1 plan (SINGLE SOURCE OF TRUTH)
-│   ├── FORMAT.md          # Injection format specification
-│   ├── REFERENCE_PATTERNS.md  # Battle-tested code patterns from skills.sh
-│   └── FUTURE_VERSIONS.md # Deferred features (v2: skills compression)
-└── benchmark/
-    ├── skills/            # Reference: skills.sh codebase (~3,000 LOC)
-    └── qmd/               # Reference: Bun patterns
-
-engrain/                   # Local docs storage (per project)
-└── <repo-name>/          # Cloned documentation files
 
 .engrain-lock.json         # Global lock file: ~/.engrain/.engrain-lock.json
 ```
@@ -245,9 +233,9 @@ const EXCLUDED_DIRS = ['.git', 'node_modules', '__pycache__', '.DS_Store'];
 
 ## Reference Documentation
 
-- **`_workstream/planning/PLAN.md`** - Complete V1 implementation plan (SINGLE SOURCE OF TRUTH)
+- **`_workstream/obsolete/PLAN.md`** - Archived V1 implementation plan (historical reference)
 - **`_workstream/planning/FORMAT.md`** - Injection format specification
 - **`_workstream/planning/REFERENCE_PATTERNS.md`** - 10 battle-tested patterns from skills.sh with code snippets
 - **`_workstream/benchmark/skills/`** - Reference implementation (~3,000 LOC, proven patterns)
 
-When implementing features, always consult PLAN.md first, then REFERENCE_PATTERNS.md for code examples.
+For changes, read the existing `src/` implementation and use `REFERENCE_PATTERNS.md` for reliability patterns. The archived plan is kept for historical context.
