@@ -13,8 +13,12 @@
   "scripts": {
     "dev": "bun src/engrain.ts",
     "build": "bun build src/engrain.ts --outfile dist/engrain.js --target node --minify",
-    "test": "bun test",
-    "prepublishOnly": "bun run build"
+    "test": "bun test tests/*.test.ts",
+    "prepublishOnly": "bun run build && bun test tests/*.test.ts"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
   },
   "keywords": [
     "ai",
