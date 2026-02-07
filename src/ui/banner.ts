@@ -37,9 +37,3 @@ export function showBanner(): void {
   console.log(`${c.dim("Learn more at")} ${c.text("https://github.com/olavocarvalho/engrain")}\n`);
 }
 
-/**
- * Show mini logo for command output (optional, for consistency)
- */
-export function showMiniLogo(): void {
-  console.log(c.cyan("✶ engrain"));
-}

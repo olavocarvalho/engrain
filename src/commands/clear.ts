@@ -2,10 +2,11 @@
  * Clear command - Remove all engrain content from AGENTS.md
  */
 
-import { readFile } from "node:fs/promises";
+import { access } from "node:fs/promises";
 import type { ClearCommandOptions } from "../types";
 import { CommandError } from "../types";
 import { c } from "../ui/colors";
+import { log } from "../ui/log";
 import { clearAllDocs } from "../injector/lock";
 import { removeEngrainWrapper } from "../injector/inject";
 
@@ -17,56 +18,54 @@ import { removeEngrainWrapper } from "../injector/inject";
  * @param options - Command options
  */
 export async function runClearCommand(options: ClearCommandOptions): Promise<void> {
-  console.log(c.bold("\n🧹 engrain clear\n"));
+  log.header("engrain clear");
 
   // Step 1: Check if file exists
-  let fileExists = false;
-  try {
-    await readFile(options.output, "utf-8");
-    fileExists = true;
-  } catch {
-    // File doesn't exist
-  }
+  const fileExists = await access(options.output).then(() => true).catch(() => false);
 
   if (!fileExists) {
-    console.log(`${c.yellow("⚠")} ${options.output} doesn't exist, nothing to clear\n`);
+    log.warn(`${options.output} doesn't exist, nothing to clear`);
+    log.gap();
     return;
   }
 
   // Step 2: Confirm (unless --force)
   if (!options.force) {
-    console.log(`${c.yellow("⚠ Warning:")} This will remove all engrain content from ${options.output}`);
-    console.log(c.dim("Use --force to skip this confirmation\n"));
+    log.warn(`this will remove all engrain content from ${options.output}`);
+    log.hint("Use --force to skip this confirmation");
+    log.gap();
     throw new CommandError("Operation cancelled. Use --force to proceed.");
   }
 
   // Step 3: Remove engrain wrapper from the file (preserves other content)
-  console.log(`${c.dim("→")} Removing engrain content from ${options.output}...`);
+  log.detail(`removing engrain content from ${options.output}...`);
   try {
     const removed = await removeEngrainWrapper(options.output);
 
     if (!removed) {
-      console.log(`  ${c.yellow("⚠")} No engrain wrapper found in ${options.output}`);
+      log.warn(`no engrain wrapper found in ${options.output}`);
     } else {
-      console.log(`  ${c.green("✓")} Removed engrain content from ${options.output}`);
+      log.step("removed", options.output);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`\n${c.red("✗ Removal failed")}`);
-    console.error(c.dim(message));
+    log.error("removal failed");
+    log.hint(message);
+    log.gap();
     throw new CommandError(message);
   }
 
   // Step 4: Clear lock file for this project
-  console.log(`\n${c.dim("→")} Clearing lock file...`);
+  log.detail("clearing lock file...");
   try {
     await clearAllDocs(process.cwd());
-    console.log(`  ${c.green("✓")} Lock file cleared`);
+    log.step("cleared", "lock file");
   } catch (error) {
     // Non-fatal: don't exit if lock file fails
     const message = error instanceof Error ? error.message : String(error);
-    console.warn(`  ${c.yellow("⚠")} Lock file clear failed: ${message}`);
+    log.warn(`lock file clear failed: ${message}`);
   }
 
-  console.log(c.bold(`\n${c.green("✓ Done")}\n`));
+  log.gap();
+  log.footer(c.green("done"));
 }

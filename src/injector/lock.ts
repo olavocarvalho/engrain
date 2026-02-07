@@ -38,7 +38,7 @@ function createEmptyLockFile(): DocsLockFile {
  * const lock = await readLock();
  * const projectDocs = lock.projects[process.cwd()];
  */
-export async function readLock(): Promise<DocsLockFile> {
+async function readLock(): Promise<DocsLockFile> {
   const lockPath = getLockPath();
 
   try {
@@ -73,7 +73,7 @@ export async function readLock(): Promise<DocsLockFile> {
  * lock.projects[process.cwd()]["next-js"] = { ... };
  * await writeLock(lock);
  */
-export async function writeLock(lock: DocsLockFile): Promise<void> {
+async function writeLock(lock: DocsLockFile): Promise<void> {
   const lockPath = getLockPath();
 
   // Ensure directory exists
@@ -112,40 +112,18 @@ export async function addDocsToLock(
   const now = new Date().toISOString();
 
   // Ensure project exists in lock
-  if (!lock.projects[projectPath]) {
-    lock.projects[projectPath] = {};
-  }
+  const projectDocs = lock.projects[projectPath] ?? {};
+  lock.projects[projectPath] = projectDocs;
 
-  const existingEntry = lock.projects[projectPath]![docId];
+  const existingEntry = projectDocs[docId];
 
-  lock.projects[projectPath]![docId] = {
+  projectDocs[docId] = {
     ...entry,
     installedAt: existingEntry?.installedAt ?? now, // Preserve original install time
     updatedAt: now,
   };
 
   await writeLock(lock);
-}
-
-/**
- * Get docs entry from lock file
- *
- * @param projectPath - Project directory path
- * @param docId - Document identifier
- * @returns Lock entry or null if not found
- */
-export async function getDocsFromLock(
-  projectPath: string,
-  docId: string
-): Promise<DocsLockEntry | null> {
-  const lock = await readLock();
-  const projectDocs = lock.projects[projectPath];
-
-  if (!projectDocs) {
-    return null;
-  }
-
-  return projectDocs[docId] ?? null;
 }
 
 /**
@@ -167,25 +145,21 @@ export async function getAllDocsForProject(
  * @param projectPath - Project directory path
  * @param docId - Document identifier
  */
-export async function removeDocsFromLock(projectPath: string, docId: string): Promise<void> {
+export async function removeDocFromLock(projectPath: string, docId: string): Promise<void> {
   const lock = await readLock();
 
-  if (lock.projects[projectPath]) {
-    delete lock.projects[projectPath]![docId];
+  const projectDocs = lock.projects[projectPath];
+  if (projectDocs) {
+    delete projectDocs[docId];
 
     // Clean up empty projects
-    if (Object.keys(lock.projects[projectPath]!).length === 0) {
+    if (Object.keys(projectDocs).length === 0) {
       delete lock.projects[projectPath];
     }
 
     await writeLock(lock);
   }
 }
-
-/**
- * Alias for removeDocsFromLock (for consistency with command naming)
- */
-export const removeDocFromLock = removeDocsFromLock;
 
 /**
  * Clear all docs for a project

@@ -74,10 +74,7 @@ export async function cloneRepo(
         `Clone timed out after 60s. This often happens with private repos that require authentication.\n` +
           `  Ensure you have access and your SSH keys or credentials are configured:\n` +
           `  - For SSH: ssh-add -l (to check loaded keys)\n` +
-          `  - For HTTPS: gh auth status (if using GitHub CLI)`,
-        url,
-        true,
-        false
+          `  - For HTTPS: gh auth status (if using GitHub CLI)`
       );
     }
 
@@ -86,14 +83,11 @@ export async function cloneRepo(
         `Authentication failed for ${url}.\n` +
           `  - For private repos, ensure you have access\n` +
           `  - For SSH: Check your keys with 'ssh -T git@github.com'\n` +
-          `  - For HTTPS: Run 'gh auth login' or configure git credentials`,
-        url,
-        false,
-        true
+          `  - For HTTPS: Run 'gh auth login' or configure git credentials`
       );
     }
 
-    throw new GitCloneError(`Failed to clone ${url}: ${errorMessage}`, url, false, false);
+    throw new GitCloneError(`Failed to clone ${url}: ${errorMessage}`);
   }
 }
 

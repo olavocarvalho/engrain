@@ -23,12 +23,11 @@ function groupByDirectory(files: FileEntry[]): DirectoryGroup[] {
     const dir = dirname(file.relativePath) || ".";
     const fileName = basename(file.relativePath);
 
-    if (!groups.has(dir)) {
-      groups.set(dir, []);
-    }
-    const filesArray = groups.get(dir);
-    if (filesArray) {
-      filesArray.push(fileName);
+    const existing = groups.get(dir);
+    if (existing) {
+      existing.push(fileName);
+    } else {
+      groups.set(dir, [fileName]);
     }
   }
 
@@ -115,7 +114,7 @@ export async function generateIndex(
   const content = buildPipeDelimitedIndex(repoName, groups, engrainDir);
 
   // 4. Calculate sizes
-  const { sizeBytes, sizeTokens } = await calculateSize(content);
+  const { sizeBytes, sizeTokens } = calculateSize(content);
 
   // 5. Generate hash (for lock file)
   const indexHash = createHash("sha256").update(content).digest("hex");

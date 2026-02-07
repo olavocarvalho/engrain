@@ -13,12 +13,12 @@ import { estimateTokenCount } from "tokenx";
  * @returns Object with sizeBytes and sizeTokens
  *
  * @example
- * const { sizeBytes, sizeTokens } = await calculateSize(indexContent);
+ * const { sizeBytes, sizeTokens } = calculateSize(indexContent);
  * console.log(`Size: ${sizeBytes} bytes, ${sizeTokens} tokens`);
  */
-export async function calculateSize(
+export function calculateSize(
   content: string
-): Promise<{ sizeBytes: number; sizeTokens: number }> {
+): { sizeBytes: number; sizeTokens: number } {
   // Calculate bytes (UTF-8 encoding)
   const sizeBytes = Buffer.byteLength(content, "utf-8");
 

@@ -24,7 +24,7 @@ async function detectDocsRoot(repoRoot: string): Promise<string | null> {
 
   for (const candidate of candidates) {
     const match = entries.find(
-      (e) => e.isDirectory() && e.name.toLowerCase() === candidate.toLowerCase()
+      (e) => e.isDirectory() && e.name.toLowerCase() === candidate
     );
     if (match) {
       return match.name;
@@ -67,7 +67,7 @@ export async function runDocsCommand(repoUrl: string, options: DocsCommandOption
   const parsed = parseSource(repoUrl);
   const repoName = options.name ? sanitizeName(options.name) : sanitizeName(extractRepoName(parsed));
 
-  log.active(repoName);
+  log.source(repoName);
   const sourceDetails: string[] = [parsed.type];
   if (parsed.ref) sourceDetails.push(parsed.ref);
   if (parsed.subpath) sourceDetails.push(parsed.subpath);
@@ -90,17 +90,17 @@ export async function runDocsCommand(repoUrl: string, options: DocsCommandOption
     selectedSubpath = undefined;
   } else {
     // ── Clone repository (shallow, with timeout) ────────────────
-    log.detail("Cloning repository...");
+    log.detail("cloning...");
     try {
       const cloneResult = await cloneRepo(parsed.url, parsed.ref || options.ref);
       tempDir = cloneResult.tempDir;
       commitHash = cloneResult.commitHash;
       actualRef = cloneResult.actualRef;
 
-      const cloneParts: string[] = ["Cloned"];
+      const cloneParts: string[] = [];
       if (actualRef && actualRef !== "HEAD") cloneParts.push(actualRef);
       cloneParts.push(commitHash.substring(0, 7));
-      log.step(cloneParts.join(" · "));
+      log.step("cloned", cloneParts.join(" · "));
       log.gap();
 
       // Extract subpath if specified
@@ -128,10 +128,9 @@ export async function runDocsCommand(repoUrl: string, options: DocsCommandOption
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log.error("Clone failed");
-      log.detail(message);
+      log.error("clone failed");
+      log.hint(message);
       log.gap();
-      log.footer("");
       throw new CommandError(message);
     }
 
@@ -195,18 +194,12 @@ export async function runDocsCommand(repoUrl: string, options: DocsCommandOption
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log.error("Move failed");
-      log.detail(message);
+      log.error("move failed");
+      log.hint(message);
       log.gap();
-      log.footer("");
-
-      // Cleanup temp dir before exit
-      if (tempDir) {
-        await cleanupTempDir(tempDir).catch(() => {});
-      }
       throw new CommandError(message);
     } finally {
-      // Clean up temp directory
+      // Clean up temp directory (runs on both success and error)
       if (tempDir) {
         await cleanupTempDir(tempDir).catch(() => {});
       }
@@ -218,12 +211,12 @@ export async function runDocsCommand(repoUrl: string, options: DocsCommandOption
   try {
     indexResult = await generateIndex(docsPath, repoName, `./${options.engrainDir}`);
 
-    log.step(`Indexed ${indexResult.fileCount} files`);
+    log.step("indexed", `${indexResult.fileCount} files`);
 
     // Show destination with optional profile hint
     const destPath = `./${options.engrainDir}/${repoName}`;
-    log.detail(profileInfo ? `${destPath} (${profileInfo})` : destPath);
-    log.detail(formatSize(indexResult.sizeBytes, indexResult.sizeTokens));
+    log.stepInfo(profileInfo ? `${destPath} (${profileInfo})` : destPath);
+    log.stepInfo(formatSize(indexResult.sizeBytes, indexResult.sizeTokens));
 
     // Validate index and surface warnings
     const warnings = validateIndex(indexResult.content);
@@ -233,17 +226,16 @@ export async function runDocsCommand(repoUrl: string, options: DocsCommandOption
     log.gap();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    log.error("Index generation failed");
-    log.detail(message);
+    log.error("index failed");
+    log.hint(message);
     log.gap();
-    log.footer("");
     throw new CommandError(message);
   }
 
   // ── Inject or dry run ─────────────────────────────────────────
   if (options.dryRun) {
-    log.warn("Dry run — skipping injection");
-    log.detail("Preview: " + indexResult.content.substring(0, 200) + "...");
+    log.warn("dry run — skipping injection");
+    log.hint("preview: " + indexResult.content.substring(0, 200) + "...");
     log.gap();
   } else {
     try {
@@ -255,17 +247,15 @@ export async function runDocsCommand(repoUrl: string, options: DocsCommandOption
       );
 
       log.step(
-        injectionResult.existed
-          ? `Updated ${options.output}`
-          : `Injected into ${options.output}`
+        injectionResult.existed ? "updated" : "engrained",
+        options.output
       );
       log.gap();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log.error("Injection failed");
-      log.detail(message);
+      log.error("injection failed");
+      log.hint(message);
       log.gap();
-      log.footer("");
       throw new CommandError(message);
     }
 
@@ -285,11 +275,11 @@ export async function runDocsCommand(repoUrl: string, options: DocsCommandOption
     } catch (error) {
       // Non-fatal: don't exit if lock file fails
       const message = error instanceof Error ? error.message : String(error);
-      log.warn(`Lock file update failed: ${message}`);
+      log.warn(`lock file update failed: ${message}`);
     }
   }
 
   // ── Done ──────────────────────────────────────────────────────
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-  log.footer(`${c.green("Done")} in ${elapsed}s`);
+  log.footer(`${c.green("done")} in ${elapsed}s`);
 }

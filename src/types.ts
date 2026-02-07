@@ -124,28 +124,16 @@ export interface ClearCommandOptions {
 // ============================================================================
 
 export class GitCloneError extends Error {
-  readonly url: string;
-  readonly isTimeout: boolean;
-  readonly isAuthError: boolean;
-
-  constructor(message: string, url: string, isTimeout = false, isAuthError = false) {
+  constructor(message: string) {
     super(message);
     this.name = "GitCloneError";
-    this.url = url;
-    this.isTimeout = isTimeout;
-    this.isAuthError = isAuthError;
   }
 }
 
 export class InjectionError extends Error {
-  readonly filePath: string;
-  readonly docId: string;
-
-  constructor(message: string, filePath: string, docId: string) {
+  constructor(message: string) {
     super(message);
     this.name = "InjectionError";
-    this.filePath = filePath;
-    this.docId = docId;
   }
 }
 

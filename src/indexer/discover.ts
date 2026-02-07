@@ -297,13 +297,3 @@ export async function discoverFiles(rootPath: string): Promise<FileEntry[]> {
   return results;
 }
 
-/**
- * Get file count for a directory (used for reporting)
- *
- * @param rootPath - Root directory to count
- * @returns Number of files discovered
- */
-export async function countFiles(rootPath: string): Promise<number> {
-  const files = await discoverFiles(rootPath);
-  return files.length;
-}

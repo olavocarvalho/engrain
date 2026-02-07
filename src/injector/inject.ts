@@ -110,9 +110,7 @@ function injectDocBlock(
   // If no wrapper but content exists, error
   if (!wrapper) {
     throw new InjectionError(
-      `Global <engrain> wrapper not found in file. Cannot inject docs without wrapper.`,
-      "",
-      docId
+      `Global <engrain> wrapper not found in file. Cannot inject docs without wrapper.`
     );
   }
 
@@ -122,9 +120,7 @@ function injectDocBlock(
   if (existing) {
     if (!force) {
       throw new InjectionError(
-        `Doc "${docId}" already exists in file. Use --force to update.`,
-        "",
-        docId
+        `Doc "${docId}" already exists in file. Use --force to update.`
       );
     }
     // Replace existing block
@@ -177,7 +173,7 @@ export async function injectIndex(
   const { content: newContent, existed } = injectDocBlock(content, docId, block, force);
 
   // Calculate sizes
-  const { sizeBytes, sizeTokens } = await calculateSize(block);
+  const { sizeBytes, sizeTokens } = calculateSize(block);
 
   // Atomic write: temp file + rename
   await atomicWrite(filePath, newContent);

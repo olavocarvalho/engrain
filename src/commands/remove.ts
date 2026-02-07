@@ -5,6 +5,7 @@
 import type { RemoveCommandOptions } from "../types";
 import { CommandError } from "../types";
 import { c } from "../ui/colors";
+import { log } from "../ui/log";
 import { removeDocBlock } from "../injector/inject";
 import { removeDocFromLock } from "../injector/lock";
 
@@ -19,37 +20,41 @@ export async function runRemoveCommand(
   docName: string,
   options: RemoveCommandOptions
 ): Promise<void> {
-  console.log(c.bold("\n🗑️  engrain remove\n"));
+  log.header("engrain remove");
 
   // Step 1: Remove from AGENTS.md
-  console.log(`${c.dim("→")} Removing ${c.cyan(docName)} from ${options.output}...`);
+  log.detail(`removing ${docName} from ${options.output}...`);
 
   try {
     const removed = await removeDocBlock(options.output, docName);
 
     if (!removed) {
-      console.error(`\n${c.red("✗")} Doc "${docName}" not found in ${options.output}`);
+      log.error(`doc "${docName}" not found in ${options.output}`);
+      log.gap();
       throw new CommandError(`Doc "${docName}" not found`);
     }
 
-    console.log(`  ${c.green("✓")} Removed from ${options.output}`);
+    log.step("removed", options.output);
   } catch (error) {
+    if (error instanceof CommandError) throw error;
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`\n${c.red("✗ Removal failed")}`);
-    console.error(c.dim(message));
+    log.error("removal failed");
+    log.hint(message);
+    log.gap();
     throw new CommandError(message);
   }
 
   // Step 2: Remove from lock file
-  console.log(`\n${c.dim("→")} Updating lock file...`);
+  log.detail("updating lock file...");
   try {
     await removeDocFromLock(process.cwd(), docName);
-    console.log(`  ${c.green("✓")} Lock file updated`);
+    log.step("updated", "lock file");
   } catch (error) {
     // Non-fatal: don't exit if lock file fails
     const message = error instanceof Error ? error.message : String(error);
-    console.warn(`  ${c.yellow("⚠")} Lock file update failed: ${message}`);
+    log.warn(`lock file update failed: ${message}`);
   }
 
-  console.log(c.bold(`\n${c.green("✓ Done")}\n`));
+  log.gap();
+  log.footer(c.green("done"));
 }
