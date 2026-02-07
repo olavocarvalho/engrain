@@ -3,7 +3,7 @@
  * Matches skills.sh style with gradient ASCII art
  */
 
-import { LOGO_GRADIENT, gradientLine, c } from "./colors";
+import { c } from "./colors";
 
 const LOGO_LINES = [
   "███████╗███╗   ██╗ ██████╗ ██████╗  █████╗ ██╗███╗   ██╗",
@@ -19,10 +19,9 @@ const LOGO_LINES = [
  * Inspired by skills.sh's inviting first-run experience
  */
 export function showBanner(): void {
-  // Render logo with gradient
-  LOGO_LINES.forEach((line, i) => {
-    const color = LOGO_GRADIENT[i] || 238;
-    console.log(gradientLine(line, color));
+  // Render logo (simple, readable)
+  LOGO_LINES.forEach((line) => {
+    console.log(c.dimmer(line));
   });
 
   console.log(`\n${c.dim("Embed docs into always-on agent context")}\n`);
@@ -42,5 +41,5 @@ export function showBanner(): void {
  * Show mini logo for command output (optional, for consistency)
  */
 export function showMiniLogo(): void {
-  console.log(c.cyan("🌱 engrain"));
+  console.log(c.cyan("✶ engrain"));
 }

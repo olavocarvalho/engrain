@@ -1,6 +1,6 @@
 /**
  * AGENTS.md injection logic
- * Based on FORMAT.md specification
+ * Based on INJECTION_FORMAT.md specification (two-level marker system)
  */
 
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
@@ -8,6 +8,28 @@ import { dirname, join } from "node:path";
 import type { InjectionResult } from "../types";
 import { InjectionError } from "../types";
 import { calculateSize } from "../indexer/size";
+
+/**
+ * Global engrain wrapper instruction
+ */
+const ENGRAIN_WRAPPER_INSTRUCTION =
+  'STOP! Prefer retrieval-led reasoning from local docs and skills over pre-training-led reasoning for any tasks';
+
+/**
+ * Find engrain wrapper in content
+ *
+ * @param content - File content
+ * @returns Object with start and end positions, or null if not found
+ */
+function findEngrainWrapper(content: string): { start: number; end: number } | null {
+  const start = content.indexOf('<engrain important="');
+  if (start === -1) return null;
+
+  const end = content.indexOf('</engrain>', start);
+  if (end === -1) return null;
+
+  return { start, end: end + '</engrain>'.length };
+}
 
 /**
  * Find doc block in content
@@ -30,16 +52,34 @@ function findDocBlock(content: string, docId: string): { start: number; end: num
 }
 
 /**
- * Create doc block with markers
+ * Create doc block with markers (no metadata - stored in lock file)
  *
  * @param docId - Document identifier
  * @param index - Index content
  * @returns Formatted block with markers
  */
-function createDocBlock(docId: string, index: string): string {
+function createDocBlock(
+  docId: string,
+  index: string
+): string {
   return `<docs name="${docId}">
 ${index}
 </docs>`;
+}
+
+/**
+ * Create engrain wrapper with first doc block
+ *
+ * @param firstDocBlock - First doc block to wrap
+ * @returns Wrapper with doc block inside
+ */
+function createEngrainWrapper(firstDocBlock: string): string {
+  return `<engrain important="${ENGRAIN_WRAPPER_INSTRUCTION}">
+
+${firstDocBlock}
+
+</engrain>
+`;
 }
 
 /**
@@ -51,7 +91,7 @@ ${index}
  * @param force - Whether to overwrite existing block
  * @returns Updated content and whether block existed
  *
- * @throws {InjectionError} If block exists and force is false
+ * @throws {InjectionError} If block exists and force is false, or if wrapper not found
  */
 function injectDocBlock(
   content: string,
@@ -59,6 +99,24 @@ function injectDocBlock(
   newBlock: string,
   force: boolean
 ): { content: string; existed: boolean } {
+  // Check if engrain wrapper exists
+  const wrapper = findEngrainWrapper(content);
+
+  // If no wrapper and no content, create wrapper with first doc
+  if (!wrapper && content.trim() === "") {
+    return { content: createEngrainWrapper(newBlock), existed: false };
+  }
+
+  // If no wrapper but content exists, error
+  if (!wrapper) {
+    throw new InjectionError(
+      `Global <engrain> wrapper not found in file. Cannot inject docs without wrapper.`,
+      "",
+      docId
+    );
+  }
+
+  // Check if doc block already exists
   const existing = findDocBlock(content, docId);
 
   if (existing) {
@@ -74,8 +132,13 @@ function injectDocBlock(
     return { content: newContent, existed: true };
   }
 
-  // Append new block
-  const newContent = content.trim() + "\n\n" + newBlock + "\n";
+  // Insert new block before closing </engrain> tag
+  const closeTagIndex = content.lastIndexOf('</engrain>');
+  const newContent =
+    content.slice(0, closeTagIndex) +
+    newBlock + '\n\n' +
+    content.slice(closeTagIndex);
+
   return { content: newContent, existed: false };
 }
 
@@ -107,7 +170,7 @@ export async function injectIndex(
     content = "";
   }
 
-  // Create block with markers
+  // Create block with markers (no metadata - stored in lock file)
   const block = createDocBlock(docId, indexContent);
 
   // Inject into content
@@ -155,6 +218,43 @@ async function atomicWrite(filePath: string, content: string): Promise<void> {
     await rm(tempPath, { force: true }).catch(() => {});
     throw error;
   }
+}
+
+/**
+ * Remove the entire engrain wrapper from file content, preserving surrounding content
+ *
+ * @param filePath - Path to AGENTS.md
+ * @returns true if wrapper was removed, false if not found
+ */
+export async function removeEngrainWrapper(filePath: string): Promise<boolean> {
+  let content: string;
+  try {
+    content = await readFile(filePath, "utf-8");
+  } catch {
+    return false;
+  }
+
+  const wrapper = findEngrainWrapper(content);
+  if (!wrapper) {
+    return false;
+  }
+
+  // Remove wrapper and surrounding whitespace
+  const before = content.slice(0, wrapper.start).trimEnd();
+  const after = content.slice(wrapper.end).trimStart();
+
+  const newContent = before && after
+    ? before + "\n\n" + after
+    : before || after;
+
+  if (newContent.trim() === "") {
+    // File would be empty — delete it
+    await rm(filePath, { force: true });
+  } else {
+    await atomicWrite(filePath, newContent.endsWith("\n") ? newContent : newContent + "\n");
+  }
+
+  return true;
 }
 
 /**

@@ -30,7 +30,10 @@ export interface DocsLockEntry {
    */
   sourceUrl?: string;
   sourceType: SourceType;
-  ref: string;
+  /**
+   * Git ref (branch or tag). If undefined, the repository's default branch was used.
+   */
+  ref?: string;
   subpath?: string;
   commitHash: string;
   indexHash: string;
@@ -83,17 +86,37 @@ export interface InjectionResult {
 // Commands
 // ============================================================================
 
+export type DocsProfile = "docs" | "repo";
+
 export interface DocsCommandOptions {
   output: string;
   engrainDir: string;
   name?: string;
-  ref: string;
+  /**
+   * Git ref (branch or tag). If undefined, the repository's default branch will be used.
+   */
+  ref?: string;
+  /**
+   * How to select what gets indexed when a URL has no explicit subpath.
+   * - "docs" (default): auto-pick docs roots (docs/, doc/, documentation/) + root README*
+   * - "repo": index the full repository contents
+   */
+  profile: DocsProfile;
   dryRun: boolean;
   force: boolean;
 }
 
 export interface CheckCommandOptions {
   docName?: string;
+}
+
+export interface RemoveCommandOptions {
+  output: string;
+}
+
+export interface ClearCommandOptions {
+  output: string;
+  force: boolean;
 }
 
 // ============================================================================

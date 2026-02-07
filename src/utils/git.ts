@@ -13,23 +13,23 @@ const CLONE_TIMEOUT_MS = 60000; // 60 seconds
 
 /**
  * Clone a git repository with shallow clone (depth=1)
- * Includes timeout, cleanup on error, and commit hash capture
+ * Includes timeout, cleanup on error, commit hash capture, and branch detection
  *
  * @param url - Git repository URL
- * @param ref - Branch or tag to checkout (optional)
- * @returns Object with temp directory path and commit hash
+ * @param ref - Branch or tag to checkout (optional, uses remote's default if not specified)
+ * @returns Object with temp directory path, commit hash, and actual branch used
  *
  * @throws {GitCloneError} If clone fails, with structured error info
  *
  * @example
- * const { tempDir, commitHash } = await cloneRepo("https://github.com/vercel/next.js.git", "canary");
+ * const { tempDir, commitHash, actualRef } = await cloneRepo("https://github.com/vercel/next.js.git", "canary");
  * // Use tempDir...
  * await cleanupTempDir(tempDir);
  */
 export async function cloneRepo(
   url: string,
   ref?: string
-): Promise<{ tempDir: string; commitHash: string }> {
+): Promise<{ tempDir: string; commitHash: string; actualRef: string }> {
   const tempDir = await mkdtemp(join(tmpdir(), "engrain-"));
   const git = simpleGit({ timeout: { block: CLONE_TIMEOUT_MS } });
 
@@ -39,12 +39,24 @@ export async function cloneRepo(
   try {
     await git.clone(url, tempDir, cloneOptions);
 
-    // Capture commit hash for staleness detection
+    // Capture commit hash and branch for staleness detection
     const repoGit = simpleGit(tempDir);
     const log = await repoGit.log({ maxCount: 1 });
     const commitHash = log.latest?.hash || "unknown";
 
-    return { tempDir, commitHash };
+    // Detect which branch was actually cloned
+    // When ref is specified, use it; otherwise detect the current branch
+    let actualRef = ref;
+    if (!actualRef) {
+      try {
+        actualRef = await repoGit.revparse(["--abbrev-ref", "HEAD"]);
+      } catch {
+        // Fallback: couldn't detect branch, leave undefined
+        actualRef = undefined;
+      }
+    }
+
+    return { tempDir, commitHash, actualRef: actualRef || "HEAD" };
   } catch (error) {
     // CRITICAL: Clean up temp dir on failure (don't throw in catch)
     await rm(tempDir, { recursive: true, force: true }).catch(() => {});
@@ -113,13 +125,13 @@ export async function cleanupTempDir(dir: string): Promise<void> {
  * Used by check command for staleness detection
  *
  * @param url - Git repository URL
- * @param ref - Branch or tag to check (default: main)
+ * @param ref - Branch or tag to check (if undefined, uses remote's default branch)
  * @returns Latest commit hash
  *
  * @example
  * const latestHash = await fetchLatestCommitHash("https://github.com/vercel/next.js.git", "canary");
  */
-export async function fetchLatestCommitHash(url: string, ref = "main"): Promise<string> {
+export async function fetchLatestCommitHash(url: string, ref?: string): Promise<string> {
   const git = simpleGit({ timeout: { block: 10000 } });
 
   try {
@@ -142,6 +154,31 @@ export async function fetchLatestCommitHash(url: string, ref = "main"): Promise<
       }
       return parsed;
     };
+
+    // If no ref specified, use HEAD (remote's default branch)
+    if (!ref || ref === "HEAD") {
+      const output = await git.listRemote(["--symref", url, "HEAD"]);
+      const lines = output.split("\n").map((l) => l.trim()).filter(Boolean);
+
+      // First line format: "ref: refs/heads/main\tHEAD"
+      const symrefLine = lines.find(l => l.startsWith("ref:"));
+      if (symrefLine) {
+        const match = symrefLine.match(/ref:\s+(refs\/heads\/\S+)/);
+        if (match) {
+          ref = match[1];
+        }
+      }
+
+      // If we still don't have a ref, try to get HEAD directly
+      if (!ref || ref === "HEAD") {
+        const allRefs = parseListRemoteOutput(output);
+        const headRef = allRefs.find(r => r.refName === "HEAD");
+        if (headRef) {
+          return headRef.hash;
+        }
+        throw new Error("Could not determine default branch");
+      }
+    }
 
     const headRef = ref.startsWith("refs/heads/") ? ref : `refs/heads/${ref}`;
     const tagRef = ref.startsWith("refs/tags/") ? ref : `refs/tags/${ref}`;

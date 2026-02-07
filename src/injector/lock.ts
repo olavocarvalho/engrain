@@ -181,3 +181,22 @@ export async function removeDocsFromLock(projectPath: string, docId: string): Pr
     await writeLock(lock);
   }
 }
+
+/**
+ * Alias for removeDocsFromLock (for consistency with command naming)
+ */
+export const removeDocFromLock = removeDocsFromLock;
+
+/**
+ * Clear all docs for a project
+ *
+ * @param projectPath - Project directory path
+ */
+export async function clearAllDocs(projectPath: string): Promise<void> {
+  const lock = await readLock();
+
+  if (lock.projects[projectPath]) {
+    delete lock.projects[projectPath];
+    await writeLock(lock);
+  }
+}

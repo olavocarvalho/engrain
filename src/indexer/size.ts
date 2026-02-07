@@ -49,5 +49,5 @@ export function formatSize(sizeBytes: number, sizeTokens: number): string {
 
   const tokensDisplay = sizeTokens.toLocaleString();
 
-  return `${bytesDisplay} (${tokensDisplay} tokens)`;
+  return `${bytesDisplay} · ${tokensDisplay} tokens`;
 }

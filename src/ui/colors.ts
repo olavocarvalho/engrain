@@ -1,69 +1,84 @@
 /**
- * Color utilities with 256-color ANSI support
- * Provides richer palette than basic picocolors
+ * Color utilities for engrain CLI.
+ *
+ * Uses `picocolors` for styling, which automatically respects:
+ * - `NO_COLOR`
+ * - TTY support
+ *
+ * We keep a small semantic palette (like skills/qmd), exposed as `c.*`.
  */
 
-const useColor = !process.env.NO_COLOR && process.stdout.isTTY;
+import pc from "picocolors";
 
-/**
- * 256-color ANSI palette
- */
-export const COLORS = {
-  // Grays (for hierarchy)
-  dim: "\x1b[38;5;102m", // Medium gray for secondary text
-  text: "\x1b[38;5;145m", // Light gray for commands
-  dimmer: "\x1b[38;5;240m", // Dark gray for borders/subtle text
+type Styler = (input: string) => string;
 
-  // Semantic colors
-  success: "\x1b[38;5;70m", // Green
-  error: "\x1b[38;5;160m", // Red
-  warning: "\x1b[38;5;214m", // Orange
-  info: "\x1b[38;5;75m", // Blue
-  cyan: "\x1b[38;5;80m", // Bright cyan
-
-  // Formatting
-  bold: "\x1b[1m",
-  reset: "\x1b[0m",
-};
-
-/**
- * Apply color if terminal supports it
- */
-function applyColor(text: string, colorCode: string): string {
-  if (!useColor) return text;
-  return `${colorCode}${text}${COLORS.reset}`;
+function hexToRgb(hex: string): [number, number, number] {
+  const normalized = hex.trim().replace(/^#/, "");
+  if (normalized.length === 3) {
+    const r = Number.parseInt(normalized[0] + normalized[0], 16);
+    const g = Number.parseInt(normalized[1] + normalized[1], 16);
+    const b = Number.parseInt(normalized[2] + normalized[2], 16);
+    return [r, g, b];
+  }
+  if (normalized.length === 6) {
+    const r = Number.parseInt(normalized.slice(0, 2), 16);
+    const g = Number.parseInt(normalized.slice(2, 4), 16);
+    const b = Number.parseInt(normalized.slice(4, 6), 16);
+    return [r, g, b];
+  }
+  throw new Error(`Invalid hex color: "${hex}"`);
 }
 
+function truecolor(hex: string, fallback: Styler): Styler {
+  const [r, g, b] = hexToRgb(hex);
+  return (input: string) => {
+    // Keep behavior aligned with picocolors (NO_COLOR, non-TTY, etc.)
+    if (!pc.isColorSupported) return fallback(input);
+    return `\x1b[38;2;${r};${g};${b}m${input}\x1b[0m`;
+  };
+}
+
+const THEME = (process.env.ENGRAIN_THEME ?? "mint").toLowerCase();
+const USE_MINT = THEME === "mint";
+
+const mint = {
+  accent: truecolor("#78FAAD", pc.green),
+  accentDim: truecolor("#59C184", pc.green),
+  // Based on "Shades of Purple Super Dark" palette, but mint-first
+  error: truecolor("#e33937", pc.red),
+  warning: truecolor("#fad000", pc.yellow),
+  info: truecolor("#6943ff", pc.blue),
+  dimmer: truecolor("#5c5c61", pc.gray),
+} as const;
+
 /**
- * Color helper functions
+ * Semantic color helpers.
+ *
+ * Note: `picocolors` returns plain text when colors are not supported.
  */
 export const c = {
-  dim: (text: string) => applyColor(text, COLORS.dim),
-  text: (text: string) => applyColor(text, COLORS.text),
-  dimmer: (text: string) => applyColor(text, COLORS.dimmer),
-  success: (text: string) => applyColor(text, COLORS.success),
-  error: (text: string) => applyColor(text, COLORS.error),
-  warning: (text: string) => applyColor(text, COLORS.warning),
-  info: (text: string) => applyColor(text, COLORS.info),
-  cyan: (text: string) => applyColor(text, COLORS.cyan),
-  bold: (text: string) => applyColor(text, COLORS.bold),
-  reset: (text: string) => text, // No-op reset for compatibility
+  // Hierarchy
+  dim: pc.dim,
+  dimmer: USE_MINT ? mint.dimmer : pc.gray,
+  text: USE_MINT ? mint.accent : pc.cyan,
 
-  // Aliases for picocolors compatibility
-  red: (text: string) => applyColor(text, COLORS.error),
-  green: (text: string) => applyColor(text, COLORS.success),
-  yellow: (text: string) => applyColor(text, COLORS.warning),
-};
+  // Semantic
+  success: USE_MINT ? mint.accent : pc.green,
+  error: USE_MINT ? mint.error : pc.red,
+  warning: USE_MINT ? mint.warning : pc.yellow,
+  info: USE_MINT ? mint.info : pc.blue,
+  cyan: USE_MINT ? mint.accent : pc.cyan,
 
-/**
- * Logo gradient colors (light to dark gray)
- */
-export const LOGO_GRADIENT = [250, 248, 245, 243, 240, 238];
+  // Formatting
+  bold: pc.bold,
+  reset: pc.reset,
 
-/**
- * Apply gradient color to a line
- */
-export function gradientLine(text: string, colorCode: number): string {
-  if (!useColor) return text;
-  return `\x1b[38;5;${colorCode}m${text}${COLORS.reset}`;
-}
+  // Aliases used elsewhere
+  red: USE_MINT ? mint.error : pc.red,
+  green: USE_MINT ? mint.accent : pc.green,
+  yellow: USE_MINT ? mint.warning : pc.yellow,
+
+  // Theme extras (optional, for richer UI)
+  accent: USE_MINT ? mint.accent : pc.cyan,
+  accentDim: USE_MINT ? mint.accentDim : pc.cyan,
+} as const;

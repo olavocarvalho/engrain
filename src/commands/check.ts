@@ -3,12 +3,11 @@
  * Compares local commit hash vs upstream
  */
 
-import type { CheckCommandOptions } from "../types";
-import { CommandError } from "../types";
-import { c } from "../ui/colors";
 import { getAllDocsForProject } from "../injector/lock";
+import type { CheckCommandOptions } from "../types";
 import { fetchLatestCommitHash } from "../utils/git";
 import { parseSource } from "../utils/source-parser";
+import { CommandError } from "../types";
 
 /**
  * Calculate days since a date
@@ -27,7 +26,7 @@ function daysSince(isoDate: string): number {
  * @param options - Command options
  */
 export async function runCheckCommand(options: CheckCommandOptions): Promise<void> {
-  console.log(c.bold("\n🔍 engrain check\n"));
+  console.log(c.bold("\n✶ engrain check\n"));
 
   // Step 1: Read lock file
   console.log(`${c.dim("→")} Reading lock file...`);
@@ -60,6 +59,8 @@ export async function runCheckCommand(options: CheckCommandOptions): Promise<voi
   let outdatedCount = 0;
 
   for (const [name, entry] of Object.entries(docsToCheck)) {
+    if (!entry) continue; // Should never happen, but satisfies TypeScript
+
     process.stdout.write(`${c.dim("→")} Checking ${c.cyan(name)}...`);
 
     // Skip local docs (can't check staleness)
@@ -82,7 +83,7 @@ export async function runCheckCommand(options: CheckCommandOptions): Promise<voi
         const updateCmd =
           `engrain docs ${entry.source}` +
           ` --name ${name}` +
-          ` --ref ${entry.ref}` +
+          (entry.ref ? ` --ref ${entry.ref}` : "") +
           ` --force`;
         console.log(c.dim(`  Run: ${c.reset(updateCmd)}`));
       } else {

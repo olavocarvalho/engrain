@@ -3,21 +3,24 @@
  * Basic sanity checks to ensure core functionality works
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe } from "bun:test";
 import { spawn } from "node:child_process";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const CLI_PATH = join(import.meta.dir, "..", "src", "engrain.ts");
+const REPO_ROOT = join(import.meta.dir, "..");
+const BUN_BIN = process.execPath;
 
 /**
  * Helper to run CLI command and capture output
  */
 async function runCLI(args: string[]): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   return new Promise((resolve) => {
-    const proc = spawn("bun", [CLI_PATH, ...args], {
+    const proc = spawn(BUN_BIN, [CLI_PATH, ...args], {
       env: { ...process.env, NO_COLOR: "1" },
+      cwd: REPO_ROOT,
     });
 
     let stdout = "";
@@ -63,6 +66,7 @@ describe("CLI Smoke Tests", () => {
     expect(stdout).toContain("--engrain-dir");
     expect(stdout).toContain("--name");
     expect(stdout).toContain("--ref");
+    expect(stdout).toContain("--profile");
     expect(stdout).toContain("--dry-run");
     expect(stdout).toContain("--force");
   });
@@ -105,6 +109,50 @@ describe("CLI Smoke Tests", () => {
       await rm(testDir, { recursive: true, force: true }).catch(() => {});
     }
   }, 30000); // 30s timeout for this test
+
+  test("index discovery excludes dotfiles and common project artifacts", async () => {
+    const { generateIndex } = await import("../src/indexer/generate");
+
+    const testDir = join(tmpdir(), `engrain-filter-test-${Date.now()}`);
+    await mkdir(join(testDir, ".github"), { recursive: true });
+
+    try {
+      await writeFile(join(testDir, "guide.md"), "# Guide\n\nContent.");
+      await writeFile(join(testDir, ".gitignore"), "node_modules\n");
+      await writeFile(join(testDir, "LightGBM.vcxproj"), "<Project />");
+      await writeFile(join(testDir, ".github", "workflows.yml"), "name: CI\n");
+
+      const result = await generateIndex(testDir, "filter-test", "./.engrain");
+
+      expect(result.content).toContain("guide.md");
+      expect(result.content).not.toContain(".gitignore");
+      expect(result.content).not.toContain("LightGBM.vcxproj");
+      expect(result.content).not.toContain(".github");
+    } finally {
+      await rm(testDir, { recursive: true, force: true }).catch(() => {});
+    }
+  });
+
+  test("index escaping prevents delimiter corruption", async () => {
+    const { generateIndex, validateIndex } = await import("../src/indexer/generate");
+
+    const testDir = join(tmpdir(), `engrain-escape-test-${Date.now()}`);
+    await mkdir(testDir, { recursive: true });
+
+    try {
+      await writeFile(join(testDir, "a,b.md"), "# Comma\n");
+      await writeFile(join(testDir, "a{b}.md"), "# Braces\n");
+
+      const result = await generateIndex(testDir, "escape-test", "./.engrain");
+      const warnings = validateIndex(result.content);
+
+      expect(result.content).toContain("a\\,b.md");
+      expect(result.content).toContain("a\\{b\\}.md");
+      expect(warnings).toEqual([]);
+    } finally {
+      await rm(testDir, { recursive: true, force: true }).catch(() => {});
+    }
+  });
 
   test("docs without URL shows error", async () => {
     const { stdout, stderr, exitCode } = await runCLI(["docs"]);

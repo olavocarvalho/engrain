@@ -63,8 +63,10 @@ function buildPipeDelimitedIndex(
   groups: DirectoryGroup[],
   engrainDir: string
 ): string {
-  // Escape pipe characters in file AND directory names (prevent malformed sections)
-  const escapePipes = (str: string) => str.replace(/\|/g, "\\|");
+  // Escape delimiter characters in file AND directory names (prevent malformed sections)
+  // Delimiters: | (section), : (dir/files), { } (file list), , (file separator), \ (escape)
+  const escapeToken = (str: string) =>
+    str.replace(/\\/g, "\\\\").replace(/[|{},:]/g, "\\$&");
 
   const header = `[${repoName} Docs Index]`;
   const root = `root: ${engrainDir}/${repoName}`;
@@ -72,8 +74,11 @@ function buildPipeDelimitedIndex(
 
   const sections = groups.map((group) => {
     // Normalize to forward slashes for cross-platform consistency (Windows uses backslashes)
-    const dirName = escapePipes(group.directory.replace(/\\/g, "/"));
-    const fileList = group.files.map(escapePipes).join(",");
+    const dirName = escapeToken(group.directory.replace(/\\/g, "/"));
+    const fileList = group.files
+      .filter((f) => f.length > 0)
+      .map(escapeToken)
+      .join(",");
     return `${dirName}:{${fileList}}`;
   });
 
@@ -133,13 +138,61 @@ export async function generateIndex(
 export function validateIndex(content: string): string[] {
   const warnings: string[] = [];
 
-  // Check for unescaped pipes in file names
-  const sections = content.split("|");
+  const isEscaped = (str: string, index: number): boolean => {
+    let count = 0;
+    for (let i = index - 1; i >= 0 && str[i] === "\\"; i--) {
+      count++;
+    }
+    return count % 2 === 1;
+  };
+
+  const splitOnUnescaped = (str: string, delimiter: string): string[] => {
+    const parts: string[] = [];
+    let current = "";
+    for (let i = 0; i < str.length; i++) {
+      const ch = str[i];
+      if (ch === undefined) continue;
+      if (ch === delimiter && !isEscaped(str, i)) {
+        parts.push(current);
+        current = "";
+        continue;
+      }
+      current += ch;
+    }
+    parts.push(current);
+    return parts;
+  };
+
+  // Split on unescaped pipes (escaped \| is allowed inside names)
+  const sections = splitOnUnescaped(content, "|");
   for (let i = 3; i < sections.length; i++) {
     const section = sections[i];
-    // Check if section matches expected format: folder:{file1,file2}
-    if (section && !section.match(/^[^:]+:\{[^}]*\}$/)) {
+    if (!section) continue;
+
+    // Basic structural validation: dir:{...}
+    const colonIndex = (() => {
+      for (let j = 0; j < section.length; j++) {
+        if (section[j] === ":" && !isEscaped(section, j)) return j;
+      }
+      return -1;
+    })();
+
+    if (colonIndex === -1 || section[colonIndex + 1] !== "{") {
       warnings.push(`Malformed section: ${section.substring(0, 50)}...`);
+      continue;
+    }
+
+    const closeIndex = section.length - 1;
+    if (section[closeIndex] !== "}" || isEscaped(section, closeIndex)) {
+      warnings.push(`Malformed section: ${section.substring(0, 50)}...`);
+      continue;
+    }
+
+    // Warn on empty file tokens (e.g. ",,")
+    const filesRaw = section.slice(colonIndex + 2, closeIndex);
+    const tokens = splitOnUnescaped(filesRaw, ",");
+    if (tokens.some((t) => t.length === 0)) {
+      warnings.push(`Empty filename token detected in section: ${section.substring(0, 50)}...`);
     }
   }
 
