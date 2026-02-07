@@ -1,0 +1,26 @@
+# Dependencies
+node_modules
+.bun
+
+# Build output
+dist
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# Testing
+coverage
+
+# IA workstreams
+_workstream/
