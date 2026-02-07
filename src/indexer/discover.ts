@@ -8,6 +8,54 @@ import { readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
 import type { FileEntry } from "../types";
 
+// Framework config files that contain doc structure (INCLUDE these)
+const DOC_STRUCTURE_FILES = new Set(
+  [
+    // Sphinx (Python)
+    "conf.py",
+    // MkDocs
+    "mkdocs.yml",
+    "mkdocs.yaml",
+    // Jupyter Book
+    "_config.yml",
+    "_toc.yml",
+    // Docusaurus
+    "docusaurus.config.js",
+    "docusaurus.config.ts",
+    "sidebars.js",
+    "sidebars.ts",
+    // Nextra (Next.js docs)
+    "_meta.js",
+    "_meta.ts",
+    // Jekyll / Hugo
+    "hugo.toml",
+    "hugo.yaml",
+    "hugo.yml",
+    "config.toml",
+    "config.yaml",
+    // GitBook
+    "book.json",
+    "summary.md", // GitBook/mdBook table of contents
+    // mdBook (Rust)
+    "book.toml",
+    // API Documentation
+    "openapi.json",
+    "openapi.yaml",
+    "openapi.yml",
+    "swagger.json",
+    "swagger.yaml",
+    "swagger.yml",
+    // Doxygen (C/C++)
+    "doxygen.conf",
+    "doxyfile",
+    // TypeDoc
+    "typedoc.json",
+    // Read the Docs
+    ".readthedocs.yml",
+    ".readthedocs.yaml",
+  ].map((name) => name.toLowerCase())
+);
+
 // Negative filtering: Exclude known non-documentation files
 const EXCLUDED_FILE_NAMES = new Set(
   [
@@ -30,6 +78,7 @@ const EXCLUDED_FILE_NAMES = new Set(
     "env.yaml",
     "environment.yaml",
     "requirements.txt", // Build dependencies (Python docs, like env.yml)
+    "mint.json", // Mintlify platform config (branding/UI, not doc structure)
   ].map((name) => name.toLowerCase())
 );
 
@@ -82,6 +131,8 @@ const EXCLUDED_EXTENSIONS = [
   ".js",
   ".mjs",
   ".cjs",
+  ".jsx",
+  ".tsx",
   // Jupyter notebooks (contain base64-encoded images, 35-60% bloat, not readable by AI)
   ".ipynb",
   // IDE / project files
@@ -99,6 +150,15 @@ const EXCLUDED_EXTENSIONS = [
   ".user",
 ];
 
+// Framework directories that contain doc structure (INCLUDE these)
+const DOC_STRUCTURE_DIRS = new Set([
+  ".vitepress", // VitePress config directory
+  ".storybook", // Storybook config
+  "_layouts", // Jekyll layouts
+  "_includes", // Jekyll includes
+  "_posts", // Jekyll blog posts
+]);
+
 const EXCLUDED_DIRS = [
   ".git",
   "node_modules",
@@ -109,6 +169,26 @@ const EXCLUDED_DIRS = [
   ".next",
   ".cache",
   "notebooks", // Example notebooks (often have large outputs/images)
+  // Sphinx build outputs
+  "_build",
+  ".doctrees",
+  // Docusaurus
+  ".docusaurus",
+  // VitePress build outputs
+  ".vitepress/cache",
+  ".vitepress/dist",
+  // Jekyll
+  "_site",
+  // Hugo
+  "public",
+  "resources",
+  // GitBook
+  "_book",
+  // Jupyter Book
+  ".jupyter_cache",
+  // General build outputs
+  "site",
+  ".output",
 ];
 
 const EXCLUDED_DIR_SUFFIXES = [".xcodeproj", ".xcworkspace"];
@@ -118,7 +198,14 @@ const EXCLUDED_DIR_SUFFIXES = [".xcodeproj", ".xcworkspace"];
  */
 function shouldExcludeFile(fileName: string): boolean {
   const lowerName = fileName.toLowerCase();
+
+  // WHITELIST: Always include doc structure files (conf.py, mkdocs.yml, etc.)
+  if (DOC_STRUCTURE_FILES.has(lowerName)) {
+    return false;
+  }
+
   // Exclude dotfiles by default (e.g. .gitignore, .editorconfig, .github workflows, etc.)
+  // BUT: .readthedocs.yml is whitelisted above
   if (lowerName.startsWith(".")) {
     return true;
   }
@@ -142,7 +229,13 @@ function shouldExcludeFile(fileName: string): boolean {
 function shouldExcludeDir(dirName: string): boolean {
   const lowerName = dirName.toLowerCase();
 
+  // WHITELIST: Always include framework structure directories
+  if (DOC_STRUCTURE_DIRS.has(lowerName)) {
+    return false;
+  }
+
   // Exclude dot-directories by default (e.g. .git, .github, .ci, .vscode, etc.)
+  // BUT: .vitepress, .storybook are whitelisted above
   if (lowerName.startsWith(".")) {
     return true;
   }
