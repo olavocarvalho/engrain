@@ -3,7 +3,7 @@
  * Basic sanity checks to ensure core functionality works
  */
 
-import { describe } from "bun:test";
+import { describe, test, expect } from "bun:test";
 import { spawn } from "node:child_process";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -98,11 +98,11 @@ describe("CLI Smoke Tests", () => {
       ]);
 
       expect(exitCode).toBe(0);
-      expect(stdout).toContain("Parsing source");
-      expect(stdout).toContain("Generating index");
+      expect(stdout).toContain("test-docs");
+      expect(stdout).toContain("local");
       expect(stdout).toContain("Indexed");
       expect(stdout).toContain("files");
-      expect(stdout).toContain("Dry run - skipping injection");
+      expect(stdout).toContain("Dry run");
       expect(stdout).toContain("Done");
     } finally {
       // Cleanup

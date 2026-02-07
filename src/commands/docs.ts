@@ -12,6 +12,7 @@ import { addDocsToLock } from "../injector/lock";
 import type { DocsCommandOptions } from "../types";
 import { CommandError } from "../types";
 import { c } from "../ui/colors";
+import { log } from "../ui/log";
 import { cleanupTempDir, cloneRepo } from "../utils/git";
 import { isPathSafe, sanitizeName } from "../utils/sanitize";
 import { extractRepoName, parseSource } from "../utils/source-parser";
@@ -60,49 +61,47 @@ async function listRootReadmes(repoRoot: string): Promise<string[]> {
 export async function runDocsCommand(repoUrl: string, options: DocsCommandOptions): Promise<void> {
   const startTime = Date.now();
 
-  console.log(c.bold("\n✶ engrain docs\n"));
+  log.header("engrain docs");
 
-  // Step 1: Parse source URL
-  console.log(`${c.dim("→")} Parsing source...`);
+  // ── Parse source ──────────────────────────────────────────────
   const parsed = parseSource(repoUrl);
   const repoName = options.name ? sanitizeName(options.name) : sanitizeName(extractRepoName(parsed));
 
-  console.log(
-    `  ${c.cyan("Source:")} ${parsed.type} ${c.dim(`(${parsed.url.substring(0, 50)}...)`)}`
-  );
-  console.log(`  ${c.cyan("Repo:")} ${repoName}`);
-  if (parsed.ref) {
-    console.log(`  ${c.cyan("Ref:")} ${parsed.ref}`);
-  }
-  if (parsed.subpath) {
-    console.log(`  ${c.cyan("Subpath:")} ${parsed.subpath}`);
-  }
+  log.active(repoName);
+  const sourceDetails: string[] = [parsed.type];
+  if (parsed.ref) sourceDetails.push(parsed.ref);
+  if (parsed.subpath) sourceDetails.push(parsed.subpath);
+  log.detail(sourceDetails.join(" · "));
+  log.gap();
 
-  // Step 2: Handle local path (skip cloning)
+  // ── State ─────────────────────────────────────────────────────
   let docsPath: string;
   let commitHash: string;
   let actualRef: string | undefined;
   let tempDir: string | null = null;
   let selectedSubpath: string | undefined;
+  let profileInfo: string | undefined;
 
   if (parsed.type === "local") {
-    console.log(`\n${c.dim("→")} Using local path...`);
+    // ── Local path (skip cloning) ───────────────────────────────
     docsPath = parsed.localPath ?? parsed.url;
     commitHash = "local";
     actualRef = undefined;
     selectedSubpath = undefined;
   } else {
-    // Step 3: Clone repository (shallow, with timeout)
-    console.log(`\n${c.dim("→")} Cloning repository (shallow clone)...`);
+    // ── Clone repository (shallow, with timeout) ────────────────
+    log.detail("Cloning repository...");
     try {
       const cloneResult = await cloneRepo(parsed.url, parsed.ref || options.ref);
       tempDir = cloneResult.tempDir;
       commitHash = cloneResult.commitHash;
       actualRef = cloneResult.actualRef;
-      console.log(`  ${c.green("✓")} Cloned (commit: ${commitHash.substring(0, 7)})`);
-      if (actualRef && actualRef !== "HEAD") {
-        console.log(`  ${c.cyan("Branch:")} ${actualRef}`);
-      }
+
+      const cloneParts: string[] = ["Cloned"];
+      if (actualRef && actualRef !== "HEAD") cloneParts.push(actualRef);
+      cloneParts.push(commitHash.substring(0, 7));
+      log.step(cloneParts.join(" · "));
+      log.gap();
 
       // Extract subpath if specified
       docsPath = parsed.subpath ? join(tempDir, parsed.subpath) : tempDir;
@@ -129,13 +128,14 @@ export async function runDocsCommand(repoUrl: string, options: DocsCommandOption
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`\n${c.red("✗ Clone failed")}`);
-      console.error(c.dim(message));
+      log.error("Clone failed");
+      log.detail(message);
+      log.gap();
+      log.footer("");
       throw new CommandError(message);
     }
 
-    // Step 4: Move to ./.engrain/<repo-name>
-    console.log(`\n${c.dim("→")} Moving docs to project...`);
+    // ── Move docs to project ────────────────────────────────────
     const engrainBase = resolve(options.engrainDir);
     const targetPath = resolve(join(options.engrainDir, repoName));
 
@@ -159,7 +159,7 @@ export async function runDocsCommand(repoUrl: string, options: DocsCommandOption
         const docsRoot = await detectDocsRoot(repoRoot);
         if (docsRoot) {
           selectedSubpath = docsRoot;
-          console.log(`  ${c.cyan("Profile:")} docs (${c.dim(`auto: ${docsRoot}/ + README*`)})`);
+          profileInfo = `${docsRoot}/ + README*`;
 
           await mkdir(targetPath, { recursive: true });
 
@@ -180,25 +180,25 @@ export async function runDocsCommand(repoUrl: string, options: DocsCommandOption
 
           docsPath = targetPath;
         } else {
-          console.log(`  ${c.cyan("Profile:")} docs (${c.yellow("no docs/ found; falling back to repo")})`);
+          log.warn("no docs/ found, using full repository");
           // Copy full repository as fallback
           await cp(docsPath, targetPath, { recursive: true });
           docsPath = targetPath;
         }
       } else {
         if (options.profile === "repo" && !parsed.subpath) {
-          console.log(`  ${c.cyan("Profile:")} repo (full repository)`);
+          profileInfo = "full repository";
         }
         // Copy selected docsPath to target (cross-device compatible)
         await cp(docsPath, targetPath, { recursive: true });
         docsPath = targetPath;
       }
-
-      console.log(`  ${c.green("✓")} Moved to ${c.cyan(`./${options.engrainDir}/${repoName}`)}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`\n${c.red("✗ Move failed")}`);
-      console.error(c.dim(message));
+      log.error("Move failed");
+      log.detail(message);
+      log.gap();
+      log.footer("");
 
       // Cleanup temp dir before exit
       if (tempDir) {
@@ -213,36 +213,39 @@ export async function runDocsCommand(repoUrl: string, options: DocsCommandOption
     }
   }
 
-  // Step 5: Generate index
-  console.log(`\n${c.dim("→")} Generating index...`);
+  // ── Generate index ────────────────────────────────────────────
   let indexResult: Awaited<ReturnType<typeof generateIndex>>;
   try {
     indexResult = await generateIndex(docsPath, repoName, `./${options.engrainDir}`);
-    console.log(`  ${c.green("✓")} Indexed ${c.cyan(indexResult.fileCount.toString())} files`);
-    console.log(`  ${c.dim("Size:")} ${formatSize(indexResult.sizeBytes, indexResult.sizeTokens)}`);
+
+    log.step(`Indexed ${indexResult.fileCount} files`);
+
+    // Show destination with optional profile hint
+    const destPath = `./${options.engrainDir}/${repoName}`;
+    log.detail(profileInfo ? `${destPath} (${profileInfo})` : destPath);
+    log.detail(formatSize(indexResult.sizeBytes, indexResult.sizeTokens));
 
     // Validate index and surface warnings
     const warnings = validateIndex(indexResult.content);
-    if (warnings.length > 0) {
-      console.log(`  ${c.yellow("⚠ Warnings")}:`);
-      for (const warning of warnings) {
-        console.log(`    ${c.dim("•")} ${warning}`);
-      }
+    for (const warning of warnings) {
+      log.warn(warning);
     }
+    log.gap();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`\n${c.red("✗ Index generation failed")}`);
-    console.error(c.dim(message));
+    log.error("Index generation failed");
+    log.detail(message);
+    log.gap();
+    log.footer("");
     throw new CommandError(message);
   }
 
-  // Step 6: Inject into AGENTS.md (or dry run)
+  // ── Inject or dry run ─────────────────────────────────────────
   if (options.dryRun) {
-    console.log(`\n${c.yellow("⚠ Dry run - skipping injection")}`);
-    console.log(c.dim("\nIndex preview (first 200 chars):"));
-    console.log(c.dim(indexResult.content.substring(0, 200) + "..."));
+    log.warn("Dry run — skipping injection");
+    log.detail("Preview: " + indexResult.content.substring(0, 200) + "...");
+    log.gap();
   } else {
-    console.log(`\n${c.dim("→")} Injecting into ${options.output}...`);
     try {
       const injectionResult = await injectIndex(
         options.output,
@@ -251,20 +254,22 @@ export async function runDocsCommand(repoUrl: string, options: DocsCommandOption
         options.force
       );
 
-      if (injectionResult.existed) {
-        console.log(`  ${c.green("✓")} Updated existing block`);
-      } else {
-        console.log(`  ${c.green("✓")} Added new block`);
-      }
+      log.step(
+        injectionResult.existed
+          ? `Updated ${options.output}`
+          : `Injected into ${options.output}`
+      );
+      log.gap();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`\n${c.red("✗ Injection failed")}`);
-      console.error(c.dim(message));
+      log.error("Injection failed");
+      log.detail(message);
+      log.gap();
+      log.footer("");
       throw new CommandError(message);
     }
 
-    // Step 7: Update lock file
-    console.log(`\n${c.dim("→")} Updating lock file...`);
+    // ── Lock file (silent unless error) ─────────────────────────
     try {
       await addDocsToLock(process.cwd(), repoName, {
         source: repoUrl,
@@ -277,15 +282,14 @@ export async function runDocsCommand(repoUrl: string, options: DocsCommandOption
         indexSizeBytes: indexResult.sizeBytes,
         indexSizeTokens: indexResult.sizeTokens,
       });
-      console.log(`  ${c.green("✓")} Lock file updated`);
     } catch (error) {
       // Non-fatal: don't exit if lock file fails
       const message = error instanceof Error ? error.message : String(error);
-      console.warn(`  ${c.yellow("⚠")} Lock file update failed: ${message}`);
+      log.warn(`Lock file update failed: ${message}`);
     }
   }
 
-  // Success summary
+  // ── Done ──────────────────────────────────────────────────────
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-  console.log(c.bold(`\n${c.green("✓ Done")} in ${elapsed}s\n`));
+  log.footer(`${c.green("Done")} in ${elapsed}s`);
 }
