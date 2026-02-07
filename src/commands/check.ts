@@ -3,9 +3,9 @@
  * Compares local commit hash vs upstream
  */
 
-import pc from "picocolors";
 import type { CheckCommandOptions } from "../types";
 import { CommandError } from "../types";
+import { c } from "../ui/colors";
 import { getAllDocsForProject } from "../injector/lock";
 import { fetchLatestCommitHash } from "../utils/git";
 import { parseSource } from "../utils/source-parser";
@@ -27,15 +27,15 @@ function daysSince(isoDate: string): number {
  * @param options - Command options
  */
 export async function runCheckCommand(options: CheckCommandOptions): Promise<void> {
-  console.log(pc.bold("\n🔍 engrain check\n"));
+  console.log(c.bold("\n🔍 engrain check\n"));
 
   // Step 1: Read lock file
-  console.log(`${pc.dim("→")} Reading lock file...`);
+  console.log(`${c.dim("→")} Reading lock file...`);
   const projectDocs = await getAllDocsForProject(process.cwd());
 
   if (Object.keys(projectDocs).length === 0) {
-    console.log(`\n${pc.yellow("⚠")} No docs installed for this project`);
-    console.log(pc.dim("Run 'engrain docs <repository-url>' to install documentation.\n"));
+    console.log(`\n${c.yellow("⚠")} No docs installed for this project`);
+    console.log(c.dim("Run 'engrain docs <repository-url>' to install documentation.\n"));
     return;
   }
 
@@ -45,26 +45,26 @@ export async function runCheckCommand(options: CheckCommandOptions): Promise<voi
     : projectDocs;
 
   if (options.docName && !projectDocs[options.docName]) {
-    console.error(`\n${pc.red("✗")} Doc "${options.docName}" not found`);
-    console.log(pc.dim("Available docs:"));
+    console.error(`\n${c.red("✗")} Doc "${options.docName}" not found`);
+    console.log(c.dim("Available docs:"));
     for (const name of Object.keys(projectDocs)) {
-      console.log(pc.dim(`  - ${name}`));
+      console.log(c.dim(`  - ${name}`));
     }
     console.log();
     throw new CommandError(`Doc "${options.docName}" not found`);
   }
 
-  console.log(`  ${pc.green("✓")} Found ${pc.cyan(Object.keys(docsToCheck).length.toString())} doc(s)\n`);
+  console.log(`  ${c.green("✓")} Found ${c.cyan(Object.keys(docsToCheck).length.toString())} doc(s)\n`);
 
   // Step 3: Check each doc for staleness
   let outdatedCount = 0;
 
   for (const [name, entry] of Object.entries(docsToCheck)) {
-    process.stdout.write(`${pc.dim("→")} Checking ${pc.cyan(name)}...`);
+    process.stdout.write(`${c.dim("→")} Checking ${c.cyan(name)}...`);
 
     // Skip local docs (can't check staleness)
     if (entry.commitHash === "local") {
-      process.stdout.write(` ${pc.dim("(local, skipped)")}\n`);
+      process.stdout.write(` ${c.dim("(local, skipped)")}\n`);
       continue;
     }
 
@@ -77,29 +77,29 @@ export async function runCheckCommand(options: CheckCommandOptions): Promise<voi
       if (latestHash !== entry.commitHash) {
         outdatedCount++;
         const daysAgo = daysSince(entry.updatedAt);
-        process.stdout.write(` ${pc.yellow("⚠ outdated")}\n`);
-        console.log(pc.dim(`  Last updated ${daysAgo} days ago`));
+        process.stdout.write(` ${c.yellow("⚠ outdated")}\n`);
+        console.log(c.dim(`  Last updated ${daysAgo} days ago`));
         const updateCmd =
           `engrain docs ${entry.source}` +
           ` --name ${name}` +
           ` --ref ${entry.ref}` +
           ` --force`;
-        console.log(pc.dim(`  Run: ${pc.reset(updateCmd)}`));
+        console.log(c.dim(`  Run: ${c.reset(updateCmd)}`));
       } else {
-        process.stdout.write(` ${pc.green("✓ up to date")}\n`);
+        process.stdout.write(` ${c.green("✓ up to date")}\n`);
       }
     } catch (error) {
-      process.stdout.write(` ${pc.red("✗ error")}\n`);
+      process.stdout.write(` ${c.red("✗ error")}\n`);
       const message = error instanceof Error ? error.message : String(error);
-      console.log(pc.dim(`  ${message}`));
+      console.log(c.dim(`  ${message}`));
     }
   }
 
   // Summary
   const totalCount = Object.keys(docsToCheck).length;
   console.log(
-    pc.bold(
-      `\n${totalCount} doc(s) checked, ${outdatedCount > 0 ? pc.yellow(`${outdatedCount} outdated`) : pc.green("all up to date")}\n`
+    c.bold(
+      `\n${totalCount} doc(s) checked, ${outdatedCount > 0 ? c.yellow(`${outdatedCount} outdated`) : c.green("all up to date")}\n`
     )
   );
 }

@@ -13,6 +13,8 @@ import pc from "picocolors";
 import { runCheckCommand } from "./commands/check";
 import { runDocsCommand } from "./commands/docs";
 import { CommandError } from "./types";
+import { showBanner } from "./ui/banner";
+import { c } from "./ui/colors";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -29,14 +31,18 @@ function getVersion(): string {
 const VERSION = getVersion();
 
 async function main() {
-  // Hello World - Ready to engrain!
-  console.log(pc.cyan(`\n🌱 engrain v${VERSION} - Ready to embed documentation indexes!\n`));
-
   const args = process.argv.slice(2);
   const command = args[0];
   const restArgs = args.slice(1);
 
-  if (!command || command === "help" || command === "--help" || command === "-h") {
+  // No args: show banner (compact, inviting)
+  if (!command) {
+    showBanner();
+    return;
+  }
+
+  // --help: show full help (comprehensive)
+  if (command === "help" || command === "--help" || command === "-h") {
     showHelp();
     return;
   }
@@ -114,59 +120,65 @@ async function main() {
 }
 
 function showHelp() {
-  console.log(`${pc.bold("engrain")} ${pc.dim(`v${VERSION}`)}`);
-  console.log(pc.dim("Documentation index embedder for agent context."));
-  console.log("");
-  console.log(pc.bold("Usage"));
-  console.log("  engrain docs <repository-url> [options]");
-  console.log("  engrain check [doc-name]");
-  console.log("");
-  console.log(pc.bold("Commands"));
-  console.log("  docs   Clone docs repo, index files, inject into AGENTS.md");
-  console.log("  check  Detect stale docs installs for this project");
-  console.log("");
-  console.log(pc.bold("Global options"));
-  console.log("  -h, --help     Show help");
-  console.log("  -v, --version  Show version");
-  console.log("");
-  console.log(pc.bold("Examples"));
-  console.log("  engrain docs https://github.com/vercel/next.js/tree/canary/docs");
-  console.log("  engrain docs https://github.com/facebook/react/tree/main/docs --name react");
-  console.log("  engrain check");
-  console.log("  engrain check next-js");
-  console.log("");
-  console.log(`Run ${pc.bold("engrain docs --help")} or ${pc.bold("engrain check --help")} for command options.`);
+  console.log(`${c.bold("Usage:")} engrain <command> [options]\n`);
+
+  console.log(c.bold("Commands:"));
+  console.log(`  docs <url>        Clone docs repository, index files, inject into AGENTS.md`);
+  console.log(`                    ${c.dimmer("e.g. https://github.com/vercel/next.js/tree/canary/docs")}`);
+  console.log(`                    ${c.dimmer("     vercel/next.js/tree/canary/docs")}`);
+  console.log(`  check [name]      Detect stale docs by comparing local vs upstream commits\n`);
+
+  console.log(c.bold("Global Options:"));
+  console.log(`  -h, --help        Show this help message`);
+  console.log(`  -v, --version     Show version number\n`);
+
+  console.log(c.bold("Examples:"));
+  console.log(`  ${c.dim("$")} engrain docs vercel/next.js/tree/canary/docs`);
+  console.log(`  ${c.dim("$")} engrain docs facebook/react/tree/main/docs --name react`);
+  console.log(`  ${c.dim("$")} engrain docs https://... --output .ENGRAIN       ${c.dim("# custom output")}`);
+  console.log(`  ${c.dim("$")} engrain docs ./local-docs --dry-run              ${c.dim("# preview local")}`);
+  console.log(`  ${c.dim("$")} engrain check                                    ${c.dim("# check all docs")}`);
+  console.log(`  ${c.dim("$")} engrain check next-js                            ${c.dim("# check specific doc")}\n`);
+
+  console.log(`${c.dim("Learn more at")} ${c.text("https://github.com/olavocarvalho/engrain")}\n`);
 }
 
 function showDocsHelp() {
-  console.log(`${pc.bold("engrain docs")} ${pc.dim(`v${VERSION}`)}`);
-  console.log("");
-  console.log(pc.bold("Usage"));
-  console.log("  engrain docs <repository-url> [options]");
-  console.log("");
-  console.log(pc.bold("Options"));
-  console.log("  -o, --output <file>      Output file (default: AGENTS.md)");
-  console.log("      --engrain-dir <dir>  Local docs directory (default: ./.engrain)");
-  console.log("      --name <name>        Override repository name (default: derived from URL)");
-  console.log("      --ref <ref>          Git branch/tag (default: main)");
-  console.log("      --dry-run            Preview without writing");
-  console.log("      --force              Overwrite existing block");
-  console.log("  -h, --help               Show help");
-  console.log("");
-  console.log(pc.bold("Examples"));
-  console.log("  engrain docs https://github.com/vercel/next.js/tree/canary/docs");
-  console.log("  engrain docs https://github.com/facebook/react/tree/main/docs --name react --output .ENGRAIN");
+  console.log(`${c.bold("Usage:")} engrain docs <repository-url> [options]\n`);
+
+  console.log(c.bold("Docs Options:"));
+  console.log(`  -o, --output <file>      Output file (default: AGENTS.md)`);
+  console.log(`      --engrain-dir <dir>  Local docs directory (default: .engrain)`);
+  console.log(`      --name <name>        Override repository name`);
+  console.log(`                           ${c.dimmer("(default: derived from URL)")}`);
+  console.log(`      --ref <ref>          Git branch/tag (default: main)`);
+  console.log(`      --dry-run            Preview without writing to disk`);
+  console.log(`      --force              Overwrite existing doc block`);
+  console.log(`  -h, --help               Show this help message\n`);
+
+  console.log(c.bold("Examples:"));
+  console.log(`  ${c.dim("$")} engrain docs vercel/next.js/tree/canary/docs`);
+  console.log(`  ${c.dim("$")} engrain docs facebook/react/tree/main/docs --name react`);
+  console.log(`  ${c.dim("$")} engrain docs https://... --output .ENGRAIN       ${c.dim("# custom output")}`);
+  console.log(`  ${c.dim("$")} engrain docs ./docs --dry-run                    ${c.dim("# preview local")}`);
+  console.log(`  ${c.dim("$")} engrain docs git@github.com:org/repo.git --ref v2.0`);
+  console.log(`  ${c.dim("$")} engrain docs https://... --force                 ${c.dim("# update existing")}\n`);
+
+  console.log(`${c.dim("Learn more at")} ${c.text("https://github.com/olavocarvalho/engrain")}\n`);
 }
 
 function showCheckHelp() {
-  console.log(`${pc.bold("engrain check")} ${pc.dim(`v${VERSION}`)}`);
-  console.log("");
-  console.log(pc.bold("Usage"));
-  console.log("  engrain check [doc-name]");
-  console.log("");
-  console.log(pc.bold("Examples"));
-  console.log("  engrain check");
-  console.log("  engrain check next-js");
+  console.log(`${c.bold("Usage:")} engrain check [doc-name]\n`);
+
+  console.log(c.bold("Description:"));
+  console.log(`  Detect stale docs by comparing local commit hash vs upstream.`);
+  console.log(`  Reads from global lock file at ${c.dimmer("~/.engrain/.engrain-lock.json")}\n`);
+
+  console.log(c.bold("Examples:"));
+  console.log(`  ${c.dim("$")} engrain check                    ${c.dim("# check all installed docs")}`);
+  console.log(`  ${c.dim("$")} engrain check next-js            ${c.dim("# check specific doc")}\n`);
+
+  console.log(`${c.dim("Learn more at")} ${c.text("https://github.com/olavocarvalho/engrain")}\n`);
 }
 
 main().catch((err) => {
