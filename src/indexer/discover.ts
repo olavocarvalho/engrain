@@ -29,6 +29,7 @@ const EXCLUDED_FILE_NAMES = new Set(
     "environment.yml",
     "env.yaml",
     "environment.yaml",
+    "requirements.txt", // Build dependencies (Python docs, like env.yml)
   ].map((name) => name.toLowerCase())
 );
 
@@ -81,6 +82,8 @@ const EXCLUDED_EXTENSIONS = [
   ".js",
   ".mjs",
   ".cjs",
+  // Jupyter notebooks (contain base64-encoded images, 35-60% bloat, not readable by AI)
+  ".ipynb",
   // IDE / project files
   ".sln",
   ".vcxproj",
@@ -105,6 +108,7 @@ const EXCLUDED_DIRS = [
   "coverage",
   ".next",
   ".cache",
+  "notebooks", // Example notebooks (often have large outputs/images)
 ];
 
 const EXCLUDED_DIR_SUFFIXES = [".xcodeproj", ".xcworkspace"];
