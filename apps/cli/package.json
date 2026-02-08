@@ -1,0 +1,58 @@
+{
+  "name": "engrain",
+  "version": "1.1.0",
+  "description": "Embed documentation indexes into agent context. Clone docs, generate compact indexes, inject into AGENTS.md as always-on passive context.",
+  "type": "module",
+  "bin": {
+    "engrain": "bin/engrain.mjs"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "bun src/engrain.ts",
+    "build": "bun build src/engrain.ts --outfile dist/engrain.js --target node --minify",
+    "test": "ENGRAIN_DISABLE_TELEMETRY=1 bun test tests/*.test.ts",
+    "prepublishOnly": "bun run build && ENGRAIN_DISABLE_TELEMETRY=1 bun test tests/*.test.ts"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "keywords": [
+    "ai",
+    "llm",
+    "agent",
+    "skills",
+    "context",
+    "claude",
+    "agents-md",
+    "knowledge",
+    "embedding",
+    "minify"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/olavocarvalho/engrain.git"
+  },
+  "author": "Olavo Carvalho",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18",
+    "bun": ">=1.0.0"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.7.0",
+    "@engrain/telemetry": "workspace:*",
+    "picocolors": "^1.1.1",
+    "simple-git": "^3.30.0",
+    "tokenx": "^1.3.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "bun-types": "latest"
+  }
+}

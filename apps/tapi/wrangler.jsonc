@@ -1,0 +1,8 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "engrain-t",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-02-01",
+  "account_id": "68bef91e70127a4c1c32666736b67fd4",
+  "analytics_engine_datasets": [{ "binding": "ENGRAIN_TELEMETRY", "dataset": "engrain_telemetry" }]
+}

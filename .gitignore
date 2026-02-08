@@ -1,0 +1,53 @@
+# Environment variables
+.env
+.env.local
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Testing
+coverage/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+.cache/
+.turbo/
+
+# Local CLI data (downloaded docs - regenerated from .engrain-lock.json)
+.engrain/
+engrain/
+
+# Workstream
+_workstream/
+
+# Experiment (moved to separate repo)
+experiment-design/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
